@@ -1,0 +1,1452 @@
+openapi: 3.0.3
+info:
+  title: E-Bookstore Platform API
+  description: |
+    Comprehensive RESTful API for the E-Bookstore Platform built with Java 21 and Spring boot.
+    Supports user authentication, product catalog browsing, smart recommendations, shopping basket management, 
+    gift points redemption, payment processing, 48-hour order cancellation policy, and "Buy It Again" reordering.
+  version: 1.0.0
+  contact:
+    name: Capstone Project Team
+    email: support@ebookstore.example.com
+servers:
+  - url: http://localhost:8080
+    description: Local Spring boot Development Server
+
+tags:
+  - name: Authentication & User
+    description: User registration, login, profile, and address management
+  - name: Catalog & Books
+    description: Book browsing, filtering, search, categories, and publishers/brands
+  - name: Recommendations
+    description: Related books and order-history based smart recommendations
+  - name: Shopping Cart
+    description: Shopping basket management, add/update/remove items
+  - name: Orders & Checkout
+    description: Order placement, gift points redemption, order history, 48h cancellation, and Buy It Again
+  - name: Payments
+    description: Multi-option payment initiation and confirmation
+
+paths:
+  # ==========================================
+  # AUTHENTICATION & USER ENDPOINTS
+  # ==========================================
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication & User
+      summary: Register a new user
+      description: Creates a new customer account with default loyalty gift points.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication & User
+      summary: User login
+      description: Authenticates user credentials and returns an authentication token and user profile.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /api/users/profile:
+    get:
+      tags:
+        - Authentication & User
+      summary: Get current user profile
+      description: Retrieves the authenticated user's profile details including gift points balance.
+      operationId: getCurrentUserProfile
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/users/addresses:
+    get:
+      tags:
+        - Authentication & User
+      summary: List user delivery addresses
+      description: Retrieves all saved delivery addresses for the current user.
+      operationId: getUserAddresses
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: List of saved addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AddressResponse'
+    post:
+      tags:
+        - Authentication & User
+      summary: Add a new delivery address
+      description: Saves a new delivery address for the user.
+      operationId: addAddress
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+      responses:
+        '201':
+          description: Address created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/users/addresses/{id}:
+    get:
+      tags:
+        - Authentication & User
+      summary: Get address by ID
+      operationId: getAddressById
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Address details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    put:
+      tags:
+        - Authentication & User
+      summary: Update delivery address
+      operationId: updateAddress
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressRequest'
+      responses:
+        '200':
+          description: Address updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Authentication & User
+      summary: Delete delivery address
+      operationId: deleteAddress
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Address deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # CATALOG & BOOKS ENDPOINTS
+  # ==========================================
+  /api/categories:
+    get:
+      tags:
+        - Catalog & Books
+      summary: List all book categories
+      description: Returns all available book categories (Fiction, Technology, Science, etc.).
+      operationId: getAllCategories
+      responses:
+        '200':
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryResponse'
+    post:
+      tags:
+        - Catalog & Books
+      summary: Create a category
+      operationId: createCategory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryRequest'
+      responses:
+        '201':
+          description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+
+  /api/categories/{id}:
+    get:
+      tags:
+        - Catalog & Books
+      summary: Get category by ID
+      operationId: getCategoryById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/brands:
+    get:
+      tags:
+        - Catalog & Books
+      summary: List all publishers/brands
+      description: Returns list of publishers and book brands (O'Reilly, Penguin, HarperCollins, etc.).
+      operationId: getAllBrands
+      responses:
+        '200':
+          description: List of publishers/brands
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BrandResponse'
+    post:
+      tags:
+        - Catalog & Books
+      summary: Create a brand/publisher
+      operationId: createBrand
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandRequest'
+      responses:
+        '201':
+          description: Brand created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandResponse'
+
+  /api/brands/{id}:
+    get:
+      tags:
+        - Catalog & Books
+      summary: Get brand by ID
+      operationId: getBrandById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Brand details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/books:
+    get:
+      tags:
+        - Catalog & Books
+      summary: Search and filter books
+      description: Search books by keyword, category, publisher/brand, price range, with pagination and sorting.
+      operationId: getBooks
+      parameters:
+        - name: search
+          in: query
+          description: Keyword matching title, author, description, or ISBN
+          required: false
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          description: Filter by category ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: brandId
+          in: query
+          description: Filter by publisher/brand ID
+          required: false
+          schema:
+            type: integer
+            format: int64
+        - name: minPrice
+          in: query
+          description: Minimum price filter
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: maxPrice
+          in: query
+          description: Maximum price filter
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: page
+          in: query
+          description: Page index (0-based)
+          required: false
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          description: Page size
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: sortBy
+          in: query
+          description: Sort field (price, rating, title, createdAt)
+          required: false
+          schema:
+            type: string
+            default: title
+        - name: sortOrder
+          in: query
+          description: Sort direction (asc or desc)
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+      responses:
+        '200':
+          description: Paginated list of books
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookPageResponse'
+    post:
+      tags:
+        - Catalog & Books
+      summary: Add a new book to catalog
+      operationId: createBook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookRequest'
+      responses:
+        '201':
+          description: Book added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+
+  /api/books/{id}:
+    get:
+      tags:
+        - Catalog & Books
+      summary: Get book details by ID
+      description: Returns complete book details including tentative delivery date calculated from turnaround days.
+      operationId: getBookById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Book details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # RECOMMENDATIONS ENDPOINTS
+  # ==========================================
+  /api/books/{id}/related:
+    get:
+      tags:
+        - Recommendations
+      summary: Get related books
+      description: Returns related books in the same category or by the same author for product detail cross-selling.
+      operationId: getRelatedBooks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID of the reference book
+          schema:
+            type: integer
+            format: int64
+        - name: limit
+          in: query
+          description: Maximum number of related books to return
+          required: false
+          schema:
+            type: integer
+            default: 4
+      responses:
+        '200':
+          description: List of related books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/recommendations/order-history:
+    get:
+      tags:
+        - Recommendations
+      summary: Personalized recommendations from order history
+      description: Recommends books based on categories and authors previously purchased by the user.
+      operationId: getRecommendationsBasedOnOrderHistory
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: limit
+          in: query
+          description: Max recommendations to return
+          required: false
+          schema:
+            type: integer
+            default: 6
+      responses:
+        '200':
+          description: Personalized book recommendations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookResponse'
+
+  # ==========================================
+  # SHOPPING CART ENDPOINTS
+  # ==========================================
+  /api/cart:
+    get:
+      tags:
+        - Shopping Cart
+      summary: Get current active cart
+      description: Retrieves the current user's shopping basket items, quantities, and subtotal.
+      operationId: getCart
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: Active shopping cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+    delete:
+      tags:
+        - Shopping Cart
+      summary: Clear entire cart
+      description: Removes all items from the current user's basket.
+      operationId: clearCart
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '204':
+          description: Cart cleared successfully
+
+  /api/cart/items:
+    post:
+      tags:
+        - Shopping Cart
+      summary: Add book to cart
+      description: Adds a specified quantity of a book into the shopping cart. Validates stock availability.
+      operationId: addItemToCart
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '200':
+          description: Item added, updated cart returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/cart/items/{itemId}:
+    put:
+      tags:
+        - Shopping Cart
+      summary: Update cart item quantity
+      description: Updates the quantity of a specific item in the basket.
+      operationId: updateCartItemQuantity
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+      responses:
+        '200':
+          description: Quantity updated, updated cart returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+    delete:
+      tags:
+        - Shopping Cart
+      summary: Remove item from cart
+      description: Removes a single item from the active cart.
+      operationId: removeCartItem
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Item removed, updated cart returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # ORDERS & CHECKOUT ENDPOINTS
+  # ==========================================
+  /api/orders:
+    post:
+      tags:
+        - Orders & Checkout
+      summary: Place a new order
+      description: Converts current cart items into an order, applies gift points discount, checks stock, and sets tentative delivery date.
+      operationId: createOrder
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/orders/history:
+    get:
+      tags:
+        - Orders & Checkout
+      summary: Get user order history
+      description: Retrieves list of all past orders placed by the authenticated user.
+      operationId: getOrderHistory
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      responses:
+        '200':
+          description: List of user orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderResponse'
+
+  /api/orders/{id}:
+    get:
+      tags:
+        - Orders & Checkout
+      summary: Get order details by ID
+      operationId: getOrderById
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/orders/{id}/cancel:
+    post:
+      tags:
+        - Orders & Checkout
+      summary: Cancel order (within 48 hours policy)
+      description: |
+        Cancels an order if within 48 hours of order creation and not yet shipped. 
+        Restores product inventory and refunds any redeemed gift points.
+      operationId: cancelOrder
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '400':
+          description: Cancellation rejected (e.g. exceeded 48-hour window or order already shipped)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/orders/{id}/buy-again:
+    post:
+      tags:
+        - Orders & Checkout
+      summary: Buy It Again (re-add order items to cart)
+      description: Copies all items from a past order back into the user's active shopping cart for quick re-ordering.
+      operationId: buyItAgain
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Items re-added to cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CartResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  # ==========================================
+  # PAYMENT ENDPOINTS
+  # ==========================================
+  /api/payments/initiate:
+    post:
+      tags:
+        - Payments
+      summary: Initiate payment for an order
+      description: Initiates payment with selected method (Credit Card, Debit Card, UPI, Net Banking, Gift Points).
+      operationId: initiatePayment
+      parameters:
+        - $ref: '#/components/parameters/UserIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentInitiateRequest'
+      responses:
+        '200':
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+  /api/payments/{id}/confirm:
+    post:
+      tags:
+        - Payments
+      summary: Confirm / Process payment callback
+      description: Confirms payment transaction status and updates order status to CONFIRMED.
+      operationId: confirmPayment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfirmRequest'
+      responses:
+        '200':
+          description: Payment confirmed and order finalized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+# ==========================================
+# COMPONENTS & SCHEMAS
+# ==========================================
+components:
+  parameters:
+    UserIdHeader:
+      name: X-User-Id
+      in: header
+      required: true
+      description: Authenticated User ID
+      schema:
+        type: integer
+        format: int64
+        default: 1
+
+  responses:
+    BadRequestError:
+      description: Invalid request payload or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnauthorizedError:
+      description: Authentication failed or missing credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: Requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ConflictError:
+      description: Resource conflict (e.g., email or ISBN already exists)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    # Error Schema
+    ErrorResponse:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: '2025-05-10T14:30:00Z'
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: Bad Request
+        message:
+          type: string
+          example: Order cannot be cancelled after 48 hours.
+
+    # User & Auth Schemas
+    UserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - fullName
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: SecureP@ss123
+        fullName:
+          type: string
+          example: John Doe
+        phoneNumber:
+          type: string
+          example: '+1-555-0199'
+
+    UserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: SecureP@ss123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          example: user@example.com
+        fullName:
+          type: string
+          example: John Doe
+        giftPoints:
+          type: integer
+          example: 250
+
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        email:
+          type: string
+          example: user@example.com
+        fullName:
+          type: string
+          example: John Doe
+        phoneNumber:
+          type: string
+          example: '+1-555-0199'
+        giftPoints:
+          type: integer
+          example: 250
+        createdAt:
+          type: string
+          format: date-time
+
+    # Address Schemas
+    AddressRequest:
+      type: object
+      required:
+        - recipientName
+        - street
+        - city
+        - state
+        - postalCode
+        - country
+      properties:
+        recipientName:
+          type: string
+          example: John Doe
+        street:
+          type: string
+          example: 123 Tech Boulevard, Apt 4B
+        city:
+          type: string
+          example: San Jose
+        state:
+          type: string
+          example: CA
+        postalCode:
+          type: string
+          example: '95134'
+        country:
+          type: string
+          default: USA
+          example: USA
+        isDefault:
+          type: boolean
+          default: false
+
+    AddressResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        recipientName:
+          type: string
+          example: John Doe
+        street:
+          type: string
+          example: 123 Tech Boulevard, Apt 4B
+        city:
+          type: string
+          example: San Jose
+        state:
+          type: string
+          example: CA
+        postalCode:
+          type: string
+          example: '95134'
+        country:
+          type: string
+          example: USA
+        isDefault:
+          type: boolean
+          example: true
+
+    # Category & Brand Schemas
+    CategoryRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: Technology & Computer Science
+        description:
+          type: string
+          example: Software engineering, cloud architecture, and AI books
+
+    CategoryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: Technology & Computer Science
+        description:
+          type: string
+          example: Software engineering, cloud architecture, and AI books
+
+    BrandRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          example: O'Reilly Media
+        description:
+          type: string
+          example: Leading publisher of computer science and technology books
+
+    BrandResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        name:
+          type: string
+          example: O'Reilly Media
+        description:
+          type: string
+          example: Leading publisher of computer science and technology books
+
+    # Book Schemas
+    BookRequest:
+      type: object
+      required:
+        - title
+        - author
+        - isbn
+        - price
+        - categoryId
+        - brandId
+      properties:
+        title:
+          type: string
+          example: Designing Data-Intensive Applications
+        author:
+          type: string
+          example: Martin Kleppmann
+        isbn:
+          type: string
+          example: '978-1449373320'
+        description:
+          type: string
+          example: The big ideas behind reliable, scalable, and maintainable systems.
+        price:
+          type: number
+          format: double
+          example: 44.99
+        stockQuantity:
+          type: integer
+          default: 50
+          example: 50
+        deliveryDays:
+          type: integer
+          default: 3
+          example: 3
+        coverImageUrl:
+          type: string
+          example: https://images.example.com/books/ddia.jpg
+        categoryId:
+          type: integer
+          format: int64
+          example: 1
+        brandId:
+          type: integer
+          format: int64
+          example: 1
+        rating:
+          type: number
+          format: double
+          default: 4.8
+          example: 4.8
+
+    BookResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        title:
+          type: string
+          example: Designing Data-Intensive Applications
+        author:
+          type: string
+          example: Martin Kleppmann
+        isbn:
+          type: string
+          example: '978-1449373320'
+        description:
+          type: string
+          example: The big ideas behind reliable, scalable, and maintainable systems.
+        price:
+          type: number
+          format: double
+          example: 44.99
+        stockQuantity:
+          type: integer
+          example: 50
+        deliveryDays:
+          type: integer
+          example: 3
+        tentativeDeliveryDate:
+          type: string
+          format: date
+          example: '2025-05-13'
+        coverImageUrl:
+          type: string
+          example: https://images.example.com/books/ddia.jpg
+        category:
+          $ref: '#/components/schemas/CategoryResponse'
+        brand:
+          $ref: '#/components/schemas/BrandResponse'
+        rating:
+          type: number
+          format: double
+          example: 4.8
+
+    BookPageResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookResponse'
+        totalElements:
+          type: integer
+          format: int64
+          example: 25
+        totalPages:
+          type: integer
+          example: 3
+        currentPage:
+          type: integer
+          example: 0
+        pageSize:
+          type: integer
+          example: 10
+
+    # Cart Schemas
+    AddCartItemRequest:
+      type: object
+      required:
+        - bookId
+        - quantity
+      properties:
+        bookId:
+          type: integer
+          format: int64
+          example: 1
+        quantity:
+          type: integer
+          minimum: 1
+          example: 2
+
+    UpdateCartItemRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          example: 3
+
+    CartItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 10
+        bookId:
+          type: integer
+          format: int64
+          example: 1
+        bookTitle:
+          type: string
+          example: Designing Data-Intensive Applications
+        bookAuthor:
+          type: string
+          example: Martin Kleppmann
+        coverImageUrl:
+          type: string
+          example: https://images.example.com/books/ddia.jpg
+        unitPrice:
+          type: number
+          format: double
+          example: 44.99
+        quantity:
+          type: integer
+          example: 2
+        itemTotal:
+          type: number
+          format: double
+          example: 89.98
+
+    CartResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItemResponse'
+        totalItemCount:
+          type: integer
+          example: 2
+        subtotal:
+          type: number
+          format: double
+          example: 89.98
+
+    # Order Schemas
+    CreateOrderRequest:
+      type: object
+      required:
+        - addressId
+      properties:
+        addressId:
+          type: integer
+          format: int64
+          example: 1
+        pointsToRedeem:
+          type: integer
+          default: 0
+          example: 100
+          description: Points to redeem (100 points = $1.00 discount)
+
+    OrderItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 101
+        bookId:
+          type: integer
+          format: int64
+          example: 1
+        bookTitle:
+          type: string
+          example: Designing Data-Intensive Applications
+        author:
+          type: string
+          example: Martin Kleppmann
+        quantity:
+          type: integer
+          example: 2
+        unitPrice:
+          type: number
+          format: double
+          example: 44.99
+        totalPrice:
+          type: number
+          format: double
+          example: 89.98
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 501
+        orderNumber:
+          type: string
+          example: ORD-20250510-501
+        userId:
+          type: integer
+          format: int64
+          example: 1
+        deliveryAddress:
+          $ref: '#/components/schemas/AddressResponse'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItemResponse'
+        grossAmount:
+          type: number
+          format: double
+          example: 89.98
+        pointsRedeemed:
+          type: integer
+          example: 100
+        discountAmount:
+          type: number
+          format: double
+          example: 1.00
+        netPayableAmount:
+          type: number
+          format: double
+          example: 88.98
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED]
+          example: CONFIRMED
+        createdAt:
+          type: string
+          format: date-time
+          example: '2025-05-10T14:30:00Z'
+        tentativeDeliveryDate:
+          type: string
+          format: date
+          example: '2025-05-13'
+        canCancel:
+          type: boolean
+          description: True if order is within 48 hours of creation and not yet shipped
+          example: true
+
+    # Payment Schemas
+    PaymentInitiateRequest:
+      type: object
+      required:
+        - orderId
+        - paymentMethod
+      properties:
+        orderId:
+          type: integer
+          format: int64
+          example: 501
+        paymentMethod:
+          type: string
+          enum: [CREDIT_CARD, DEBIT_CARD, UPI, NET_BANKING, GIFT_POINTS]
+          example: CREDIT_CARD
+        cardHolderName:
+          type: string
+          example: John Doe
+        cardNumber:
+          type: string
+          example: '************4242'
+
+    PaymentConfirmRequest:
+      type: object
+      required:
+        - transactionReference
+        - status
+      properties:
+        transactionReference:
+          type: string
+          example: TXN-9876543210
+        status:
+          type: string
+          enum: [SUCCESS, FAILED]
+          example: SUCCESS
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 701
+        orderId:
+          type: integer
+          format: int64
+          example: 501
+        paymentMethod:
+          type: string
+          example: CREDIT_CARD
+        amount:
+          type: number
+          format: double
+          example: 88.98
+        status:
+          type: string
+          enum: [PENDING, SUCCESS, FAILED, REFUNDED]
+          example: SUCCESS
+        transactionReference:
+          type: string
+          example: TXN-9876543210
+        paymentDate:
+          type: string
+          format: date-time
+          example: '2025-05-10T14:35:00Z'
